@@ -1,0 +1,21 @@
+@"
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
+vendor/
+.env
+.env.*.local
+*.pid
+*.sock
+db/data/
+db/data/log/
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.gdmp
+*.mdmp
+"@ | Out-File -Encoding UTF8 .gitignore

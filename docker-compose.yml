@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: mssql
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Strong!Passw0rd
+      - MSSQL_PID=Express
+    ports:
+      - "1436:1433"                 # хост:1436 → контейнер:1433
+    volumes:
+      - mssql-data:/var/opt/mssql   # ← named volume (правильные права)
+      - ./db/backup:/var/opt/mssql/backup:ro  # .bak и .sql (только чтение)
+
+  web:
+    build: ./php
+    container_name: web
+    depends_on: [ mssql ]
+    ports: [ "8089:80" ]
+    volumes:
+      - ./php/public:/var/www/html
+      - ./php/api:/var/www/html/api
+
+volumes:
+  mssql-data:
+
