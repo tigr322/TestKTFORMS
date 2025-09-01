@@ -45,6 +45,25 @@
     <button id="load3" class="btn btn-primary">Загрузить</button>
   </div>
   <table id="tbl3" class="table table-striped table-bordered" width="100%"></table>
+  <hr>
+<h2>4) МО × СМО — Счета и Сумма</h2>
+<div class="form-inline">
+  <div class="form-group">
+    <label>Год</label>
+    <input id="y4" class="form-control" style="width:100px" value="2018">
+  </div>
+  <div class="form-group">
+    <label>Месяц</label>
+    <input id="m4" class="form-control" style="width:80px" value="1">
+  </div>
+  <div class="form-group">
+    <label>СМО (код, опц.)</label>
+    <input id="smo4" class="form-control" style="width:140px" placeholder="например 23001">
+  </div>
+  <button id="load4" class="btn btn-primary">Загрузить</button>
+</div>
+
+<table id="tbl4" class="table table-striped table-bordered" width="100%"></table>
 
   <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
@@ -134,24 +153,94 @@ $('#load2').on('click', function(){ dt2.ajax.reload(); });
     $('#load2').on('click', function(){ dt2.ajax.reload(); });
 
     var dt3 = $('#tbl3').DataTable({
-      ajax: { url: '/api/report.php', dataSrc: 'data', data: function(d){
-        d.type='helpform_volumes'; d.year=$('#y3').val(); d.month=$('#m3').val();
-      }},
-      columns: [
-        { data: 'ВИД ПОМОЩИ (КОД)',          title: 'Вид помощи (код)' },
-        { data: 'ВИД ПОМОЩИ (НАИМЕНОВАНИЕ)', title: 'Вид помощи (наим.)' },
-        { data: 'КОЛИЧЕСТВО ПОСЕЩЕНИЙ',      title: 'Кол-во посещений', render: $.fn.dataTable.render.number(' ', ',', 0) },
-        { data: 'КОЛИЧЕСТВО ОБРАЩЕНИЙ',      title: 'Кол-во обращений', render: $.fn.dataTable.render.number(' ', ',', 0) },
-        { data: 'КОЛИЧЕСТВО СЧЕТОВ',         title: 'Кол-во счетов',    render: $.fn.dataTable.render.number(' ', ',', 0) },
-        { data: 'СУММА',                     title: 'Сумма',            render: $.fn.dataTable.render.number(' ', ',', 2) }
-      ],
-      dom: 'Bfrtip',
+  ajax: {
+    url: '/api/report.php',
+    data: function(d){
+      d.type  = 'helpform_volumes';
+      d.year  = $('#y3').val();
+      d.month = String($('#m3').val()).padStart(2, '0');
+    },
+    dataSrc: function (json) {
+      // Подсказка: посмотри реальные ключи первой строки
+      if ((json.data||[])[0]) console.log('tbl3 keys:', Object.keys(json.data[0]));
+      // Нормализация ключей
+      return (json.data || []).map(function (r) {
+        return {
+          help_code: r['ВИД ПОМОЩИ (КОД)']          || r['HelpFormCode'] || r['HELP_CODE'] || '',
+          help_name: r['ВИД ПОМОЩИ (НАИМЕНОВАНИЕ)'] || r['HelpFormName'] || r['HELP_NAME'] || '',
+          visits:    r['КОЛИЧЕСТВО ПОСЕЩЕНИЙ']      || r['VISITS']       || 0,
+          appeals:   r['КОЛИЧЕСТВО ОБРАЩЕНИЙ']      || r['APPEALS']      || 0,
+          bills:     r['КОЛИЧЕСТВО СЧЕТОВ']         || r['BILLS']        || 0,
+          sum:       r['СУММА']                     || r['SUM']          || 0
+        };
+      });
+    },
+    error: function(xhr){
+      console.error('AJAX error tbl3:', xhr.status, xhr.responseText);
+      alert('Ошибка загрузки отчёта 3: ' + xhr.status);
+    }
+  },
+  columns: [
+    { data: 'help_code', title: 'Вид помощи (код)' },
+    { data: 'help_name', title: 'Вид помощи (наим.)' },
+    { data: 'visits',    title: 'Кол-во посещений', render: $.fn.dataTable.render.number(' ', ',', 0) },
+    { data: 'appeals',   title: 'Кол-во обращений', render: $.fn.dataTable.render.number(' ', ',', 0) },
+    { data: 'bills',     title: 'Кол-во счетов',    render: $.fn.dataTable.render.number(' ', ',', 0) },
+    { data: 'sum',       title: 'Сумма',            render: $.fn.dataTable.render.number(' ', ',', 2) }
+  ],
+  columnDefs: [{ defaultContent: '', targets: '_all' }],
+  language: { emptyTable: 'Нет данных за выбранный период' },
+  dom: 'Bfrtip',
+  buttons: [
+    { extend: 'csvHtml5',   title: 'helpform_volumes' },
+    { extend: 'excelHtml5', title: 'helpform_volumes' }
+  ],
+  processing: true, deferRender: true
+});
+$('#load3').on('click', function(){ dt3.ajax.reload(); });
+// Таблица 4: МО × СМО
+var dt4 = $('#tbl4').DataTable({
+  ajax: {
+    url: '/api/report.php',
+    data: function (d) {
+      d.type     = 'lpu_smo_summary';
+      d.year     = $('#y4').val();
+      d.month    = $('#m4').val();
+      d.smo_code = $('#smo4').val().trim();
+    },
+    dataSrc: function (json) {
+      console.log("Keys:", Object.keys(json.data?.[0] || {}));
+      return (json.data || []).map(function (r) {
+        return {
+          mo_code:   r['МЕД. ОРГАНИЗАЦИЯ (КОД)']   || r['MO_CODE']   || '',
+          mo_name:   r['МЕД. ОРГАНИЗАЦИЯ (НАИМЕНОВАНИЕ)'] || r['MO_NAME'] || '',
+          smo_code:  r['СМО (КОД)'] || '',
+          smo_name:  r['СМО (НАИМЕНОВАНИЕ)'] || '',
+          bills:     r['КОЛИЧЕСТВО СЧЕТОВ'] || 0,
+          sum:       r['СУММА'] || 0
+        };
+      });
+    }
+  },
+  columns: [
+    { data: 'mo_code',   title: 'МО (КОД)' },
+    { data: 'mo_name',   title: 'МО (НАИМЕН.)' },
+    { data: 'smo_code',  title: 'СМО (код)' },
+    { data: 'smo_name',  title: 'СМО (наим.)' },
+    { data: 'bills',     title: 'Кол-во счетов', render: $.fn.dataTable.render.number(' ', ',', 0) },
+    { data: 'sum',       title: 'Сумма', render: $.fn.dataTable.render.number(' ', ',', 2) }
+  ],
+  dom: 'Bfrtip',
       buttons: [
-        { extend: 'csvHtml5',  title: 'helpform_volumes' },
-        { extend: 'excelHtml5',title: 'helpform_volumes' }
-      ]
-    });
-    $('#load3').on('click', function(){ dt3.ajax.reload(); });
+        { extend: 'csvHtml5',   title: 'lpu_month_sum' },
+        { extend: 'excelHtml5', title: 'lpu_month_sum' }
+      ],
+});
+
+
+$('#load4').on('click', function(){ dt4.ajax.reload(); });
+
+
   </script>
 </body>
 </html>

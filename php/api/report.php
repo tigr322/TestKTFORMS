@@ -26,6 +26,7 @@ try {
         $month = (int)($_GET['month'] ?? 0);
         $stmt = $pdo->prepare("EXEC sp_report_lpu_tpayment @pYear = ?, @pMonth = ?");
         $stmt->execute([$year, $month]);
+
         echo json_encode(['data' => $stmt->fetchAll(PDO::FETCH_ASSOC)], JSON_UNESCAPED_UNICODE);
 
     } elseif ($type === 'helpform_volumes') {
@@ -34,7 +35,16 @@ try {
         $stmt = $pdo->prepare("EXEC sp_report_helpform_volumes @pYear = ?, @pMonth = ?");
         $stmt->execute([$year, $month]);
         echo json_encode(['data' => $stmt->fetchAll(PDO::FETCH_ASSOC)], JSON_UNESCAPED_UNICODE);
-
+    } elseif ($type === 'lpu_smo_summary') {
+        $year    = (int)($_GET['year'] ?? 0);
+        $month   = (int)($_GET['month'] ?? 0);
+        // опциональный фильтр (NULL если не передан или пустая строка):
+        $smoCode = isset($_GET['smo_code']) && $_GET['smo_code'] !== '' ? (string)$_GET['smo_code'] : null;
+    
+        $stmt = $pdo->prepare("EXEC dbo.sp_report_lpu_smo_summary @pYear = ?, @pMonth = ?, @pSmoCode = ?");
+        $stmt->execute([$year, $month, $smoCode]);
+        echo json_encode(['data' => $stmt->fetchAll(PDO::FETCH_ASSOC)], JSON_UNESCAPED_UNICODE);
+    
     } else {
         http_response_code(400);
         echo json_encode(['error' => 'Unknown report type', 'hint' => 'type=lpu_month_sum|lpu_tpayment|helpform_volumes']);

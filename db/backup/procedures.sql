@@ -40,8 +40,9 @@ BEGIN
   ORDER BY lpu.Code, tp.Code;
 END
 GO
-
-IF OBJECT_ID('dbo.sp_report_helpform_volumes','P') IS NOT NULL DROP PROCEDURE dbo.sp_report_helpform_volumes;
+-- 1) helpform_volumes
+IF OBJECT_ID('dbo.sp_report_helpform_volumes','P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_report_helpform_volumes;
 GO
 CREATE PROCEDURE dbo.sp_report_helpform_volumes
   @pYear INT, @pMonth INT
@@ -49,7 +50,6 @@ AS
 BEGIN
   SET NOCOUNT ON;
 
-  
   DECLARE @visitIds  TABLE(VolumeID INT PRIMARY KEY);
   DECLARE @appealIds TABLE(VolumeID INT PRIMARY KEY);
 
@@ -78,3 +78,46 @@ BEGIN
   ORDER BY hf.Code;
 END
 GO
+
+-- 2) lpu_smo_summary (тут уже корректно дропаем ИМЕННО её)
+IF OBJECT_ID('dbo.sp_report_lpu_smo_summary','P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_report_lpu_smo_summary;
+GO
+CREATE PROCEDURE dbo.sp_report_lpu_smo_summary
+    @pYear    INT,
+    @pMonth   INT,
+    @pSmoCode NVARCHAR(20) = NULL
+AS
+BEGIN
+  SET NOCOUNT ON;
+
+  SELECT
+      [МЕД. ОРГАНИЗАЦИЯ (КОД)]          = lpu.Code,
+      [МЕД. ОРГАНИЗАЦИЯ (НАИМЕНОВАНИЕ)] = lpu.NameShort,
+      [СМО (КОД)]                       = smo.Code,
+      [СМО (НАИМЕНОВАНИЕ)]              = smo.Name,
+      [КОЛИЧЕСТВО СЧЕТОВ]               = SUM(TRY_CONVERT(INT, m.CountSch)),
+      [СУММА]                            = SUM(TRY_CONVERT(DECIMAL(18,2), m.Summ))
+  FROM finConsolidatedMaster AS m
+  INNER JOIN rfcLPU AS lpu      ON lpu.ID = m.LPUUrRef
+  INNER JOIN rfcSMO AS smo      ON smo.ID = m.SMOUrRef
+  WHERE m.YearCode  = @pYear
+    AND m.MonthCode = @pMonth
+    AND (@pSmoCode IS NULL OR smo.Code = @pSmoCode)
+  GROUP BY lpu.Code, lpu.NameShort, smo.Code, smo.Name
+  ORDER BY lpu.Code, smo.Code;
+END
+GO
+CREATE INDEX IX_fcm_year_month ON finConsolidatedMaster(YearCode, MonthCode);
+CREATE INDEX IX_fcm_lpu ON finConsolidatedMaster(LPUUrRef);
+CREATE INDEX IX_fcm_tp ON finConsolidatedMaster(TypePaymentRef);
+CREATE INDEX IX_fcm_hf ON finConsolidatedMaster(HelpFormRef);
+CREATE INDEX IX_fcm_smo ON finConsolidatedMaster(SMOUrRef);
+CREATE INDEX IX_fcd_master ON finConsolidatedDetail(finConsolidatedMasterRef);
+CREATE INDEX IX_fcd_volume ON finConsolidatedDetail(VolumeRef);
+
+CREATE UNIQUE INDEX UX_lpu_id ON rfcLPU(ID);
+CREATE UNIQUE INDEX UX_tp_id ON rfcTypePayment(ID);
+CREATE UNIQUE INDEX UX_hf_id ON rfcHelpForm(ID);
+CREATE UNIQUE INDEX UX_smo_id ON rfcSMO(ID);
+CREATE UNIQUE INDEX UX_vol_id ON rfcVolume(ID);
